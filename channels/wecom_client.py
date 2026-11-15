@@ -82,6 +82,36 @@ class WeComClient:
             print(f"[企微API报错] 发送客服消息失败: {e}")
             return False
 
+    def send_msg_on_event(self, code: str, content: str) -> bool:
+        """
+        根据进线事件的 welcome_code 下发事件响应欢迎语 (send_msg_on_event API)
+        """
+        token = self.get_access_token()
+        if not token or not code:
+            return False
+
+        url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg_on_event?access_token={token}"
+        payload = {
+            "code": code,
+            "msgtype": "text",
+            "text": {
+                "content": content
+            }
+        }
+        try:
+            req_data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                if res.get("errcode") == 0:
+                    print(f"  [✓ 进线欢迎语已成功下发 (welcome_code)]")
+                    return True
+                else:
+                    print(f"[企微API报错] send_msg_on_event 失败: {res}")
+        except Exception as e:
+            print(f"[企微API报错] send_msg_on_event 异常: {e}")
+        return False
+
     def sync_customer_messages(self, open_kfid: str, token_str: str = "", cursor: str = "") -> list:
         """
         同步微信客服消息 (微信客服 sync_msg API)
