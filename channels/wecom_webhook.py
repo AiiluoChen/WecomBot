@@ -128,21 +128,20 @@ async def receive_message(
                     cust_id = msg.get("external_userid")
                     inner_msg_type = msg.get("msgtype")
 
-                    # 1. 客户进入会话下发欢迎语
-                    if origin == 3 and inner_msg_type == "event":
+                    # 1. 客户进入会话下发欢迎语 (系统事件 origin==4 或 3)
+                    if inner_msg_type == "event":
                         event_info = msg.get("event", {})
                         event_type = event_info.get("event_type")
                         if event_type == "enter_session":
                             cust_id = event_info.get("external_userid") or cust_id
                             open_kfid = event_info.get("open_kfid") or open_kfid
                             welcome_code = event_info.get("welcome_code")
-                            print(f"[微信客服] 客户 [{cust_id}] 进入会话，下发默认欢迎语")
+                            print(f"[微信客服] 客户 [{cust_id}] 进入会话，下发默认欢迎语, welcome_code={welcome_code}")
                             from agent.prompts import WELCOME_MESSAGE
+                            sent = False
                             if welcome_code:
                                 sent = wecom_client.send_msg_on_event(welcome_code, WELCOME_MESSAGE)
-                                if not sent and cust_id and open_kfid:
-                                    wecom_client.send_customer_message(open_kfid, cust_id, WELCOME_MESSAGE)
-                            elif cust_id and open_kfid:
+                            if not sent and cust_id and open_kfid:
                                 wecom_client.send_customer_message(open_kfid, cust_id, WELCOME_MESSAGE)
                             continue
 
