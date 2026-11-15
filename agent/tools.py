@@ -28,10 +28,10 @@ TOOLS_SCHEMA = [
                     },
                     "store_or_phone": {
                         "type": "string",
-                        "description": "客户提及的拍摄门店（如北京门店、大理双廊店）或者手机号后4位（如6224）"
+                        "description": "客户提及的拍摄门店（如北京门店、大理双廊店）或者手机号后4位（如6224），二选一"
                     }
                 },
-                "required": ["customer_name"]
+                "required": ["customer_name", "shoot_date", "store_or_phone"]
             }
         }
     },
@@ -78,7 +78,13 @@ class ToolExecutor:
         shoot_date: Optional[str] = None,
         store_or_phone: Optional[str] = None
     ) -> Dict[str, Any]:
-        """查询照片交付记录"""
+        """查询照片交付记录，强制三要素完整校验"""
+        if not customer_name or not shoot_date or not store_or_phone:
+            return {
+                "status": "missing_info",
+                "message": "查询拒绝：必须同时具备【拍摄时间】、【拍摄门店或电话后4位】、【客户姓名】三项要素。请引导客户补充缺失的信息，严禁自行编造链接。"
+            }
+
         record = self.storage.query_delivery(
             customer_name=customer_name,
             shoot_date=shoot_date,
