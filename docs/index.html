@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WeCom 旅拍客服机器人 - 纯原生极简 Agent 架构方案</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-subtle: #24334a;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --code-bg: #0b1120;
+      --wechat-green: #07c160;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      scroll-behavior: smooth;
+    }
+
+    /* Container & Layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 280px;
+      background-color: #0b1120;
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 24px 16px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .nav-item a:hover {
+      background-color: var(--bg-card);
+      color: #fff;
+    }
+
+    .nav-item.active a {
+      background-color: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding: 40px 60px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header.doc-header {
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-blue { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .badge-green { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+
+    h1.doc-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+
+    p.doc-desc {
+      font-size: 16px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    /* Sections */
+    section.doc-section {
+      margin-bottom: 56px;
+    }
+
+    h2.section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h2.section-title .number {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      border-radius: 50%;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Cards */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .app-container { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; }
+      .main-content { padding: 24px; }
+    }
+
+    /* Chat Simulation Container */
+    .chat-mockup-wrapper {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+      background: #0b1120;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 960px) {
+      .chat-mockup-wrapper { grid-template-columns: 1fr; }
+    }
+
+    .phone-frame {
+      background: #18191c;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 640px;
+    }
+
+    .phone-header {
+      background: #24252a;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #333;
+    }
+
+    .phone-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #eee;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-body {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: #111215;
+    }
+
+    .chat-time {
+      text-align: center;
+      font-size: 11px;
+      color: #666;
+      margin: 4px 0;
+    }
+
+    .msg-row {
+      display: flex;
+      gap: 10px;
+      max-width: 92%;
+    }
+
+    .msg-row.bot { align-self: flex-start; }
+    .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .msg-avatar.bot-av { background: #e11d48; color: #fff; }
+    .msg-avatar.user-av { background: #0284c7; color: #fff; }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    .msg-row.bot .msg-bubble {
+      background: #282a30;
+      color: #e5e7eb;
+      border: 1px solid #3a3d45;
+    }
+
+    .msg-row.user .msg-bubble {
+      background: #059669;
+      color: #fff;
+    }
+
+    /* Inspector Panel */
+    .inspector-panel {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: 640px;
+      overflow-y: auto;
+    }
+
+    .inspector-header {
+      font-size: 14px;
+      font-weight: 700;
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-inspect {
+      background: var(--bg-card);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      font-size: 13px;
+    }
+
+    .step-inspect.tool-call { border-left-color: var(--accent); }
+    .step-inspect.handoff { border-left-color: var(--warning); }
+
+    .step-tag {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    /* Code Blocks */
+    pre.code-block {
+      background-color: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: "JetBrains Mono", Menlo, Consolas, Monaco, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #e2e8f0;
+      position: relative;
+    }
+
+    .code-tag {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+
+    /* Tables */
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    table.data-table th, table.data-table td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    table.data-table th {
+      background: var(--bg-card-subtle);
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    table.data-table tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Flow Steps */
+    .flow-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .flow-node {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+    }
+
+    .flow-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #334155;
+      color: #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    .flow-text h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+
+    .flow-text p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Highlight box */
+    .highlight-box {
+      background: rgba(37, 99, 235, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 13.5px;
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Left Sidebar Nav -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">W</div>
+      <div>
+        <div class="brand-title">WeCom Robot</div>
+        <div class="brand-subtitle">极简 Agent 架构设计方案</div>
+      </div>
+    </div>
+    <ul class="nav-list">
+      <li class="nav-item active"><a href="#overview"><span>📌</span> 方案定位与目标</a></li>
+      <li class="nav-item"><a href="#dialogue-mock"><span>💬</span> 对话场景还原</a></li>
+      <li class="nav-item"><a href="#agent-loop"><span>⚡</span> 纯原生极简 Agent 循环</a></li>
+      <li class="nav-item"><a href="#tools-design"><span>🛠️</span> 工具箱定义 (Tools)</a></li>
+      <li class="nav-item"><a href="#csv-schema"><span>📊</span> 本地 CSV 数据集规范</a></li>
+      <li class="nav-item"><a href="#file-tree"><span>📂</span> 项目工程结构规划</a></li>
+      <li class="nav-item"><a href="#migration-deploy"><span>🚀</span> 一键迁移与容器化</a></li>
+      <li class="nav-item"><a href="#roadmap"><span>📅</span> 分步落地推进指南</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <!-- Header -->
+    <header class="doc-header">
+      <div class="badge-bar">
+        <span class="badge badge-blue">Native Minimal Agent</span>
+        <span class="badge badge-green">Zero Heavy Framework</span>
+        <span class="badge badge-purple">High Portability</span>
+      </div>
+      <h1 class="doc-title">旅拍客服机器人自动化方案</h1>
+      <p class="doc-desc">
+        目标完整还原真实业务对话流程：进线自动发引导须知、三要素智能提取查片交付百度网盘链接、拟真自然闲聊、疑难与投诉一键转人工。采用<b>纯原生极简 Agent 循环机制</b>，杜绝任何重型黑盒框架，确保随时随处一键迁移。
+      </p>
+    </header>
+
+    <!-- Section 1: Overview -->
+    <section id="overview" class="doc-section">
+      <h2 class="section-title"><span class="number">1</span> 方案定位与设计哲学</h2>
+      
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">🎯 核心业务闭环</div>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            进线自动迎宾推规范、收集“拍摄时间-门店/尾号-姓名”、秒级匹配本地 CSV 数据并返回带提取码的标准百度网盘格式。
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">⚡ 极简原生架构</div>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            不引入 LangChain/AutoGen 等重型黑盒依赖。仅依赖标准 <code>openai</code> 驱动的 Tool-Calling 循环，核心引擎 60 行内完结。
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">📦 零摩擦跨机迁移</div>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            存储接口抽象隔离，配置与 Prompt 模版完全外部化，提供标准 Dockerfile，可从本地 Mac 秒级平移至 Linux 服务器。
+          </p>
+        </div>
+      </div>
+
+      <div class="highlight-box">
+        💡 <b>关于“不改代码”原则</b>：本文档仅供设计与评审，不会改动或创建项目中的任何执行代码。未来代码统一实施于 <code>/Users/aiiluo/Documents/Code/WocomRobot</code> 目录下。
+      </div>
+    </section>
+
+    <!-- Section 2: Dialogue Simulation -->
+    <section id="dialogue-mock" class="doc-section">
+      <h2 class="section-title"><span class="number">2</span> 真实对话场景还原与交互透视</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+        左侧为手机端实际呈现给客户的微信/企微对话界面；右侧为原生 Agent 在背后实时触发的<b>思考阶段、工具调用与参数流转</b>。
+      </p>
+
+      <div class="chat-mockup-wrapper">
+        <!-- Phone Chat Simulation -->
+        <div class="phone-frame">
+          <div class="phone-header">
+            <span style="font-size: 16px;">‹</span>
+            <div class="phone-title">萌萌, 急事打 17772426224@修图中心旅咔</div>
+          </div>
+          <div class="chat-body">
+            <div class="chat-time">2026年11月13日 22:16</div>
+            
+            <!-- Bot Welcome Msg -->
+            <div class="msg-row bot">
+              <div class="msg-avatar bot-av">萌</div>
+              <div class="msg-bubble">
+                陈鹏 Aiiluo 亲亲您好：<br>
+                请把“拍摄时间”-“拍摄门店（或电话后4位）”-“姓名”发给我一下，我好快速找到您的照片<br><br>
+                1、工作时间为 10-20 点，紧急情况打语音或拨打💥17772426224💥联系我<br><br>
+                2、亲亲，底片将在第二天 20 点前发完，请您稍等<br><br>
+                3、精修将在拍摄后7个工作日左右交付，选片完成即进入修片流程，所选照片将不可再更改。<br><br>
+                4、收到精修后有任何需要调整的可随时找我，精修照片里面的人物可以虚化处理...<br><br>
+                4、您可随时留言，上班后都会回复，作息原因没法立刻回复您的消息，请见谅
+              </div>
+            </div>
+
+            <div class="chat-time">2026年11月13日 22:19</div>
+
+            <!-- User Query Msg -->
+            <div class="msg-row user">
+              <div class="msg-avatar user-av">客</div>
+              <div class="msg-bubble">11月2日 北京门店 陈麻子</div>
+            </div>
+
+            <!-- Bot Quick Ack -->
+            <div class="msg-row bot">
+              <div class="msg-avatar bot-av">萌</div>
+              <div class="msg-bubble">好的，亲亲</div>
+            </div>
+
+            <div class="chat-time">2026年11月14日 19:16</div>
+
+            <!-- Bot Delivery Msg -->
+            <div class="msg-row bot">
+              <div class="msg-avatar bot-av">萌</div>
+              <div class="msg-bubble">
+                【超级会员 V4】通过百度网盘分享的文件：陈麻子<br>
+                链接：https://pan.baidu.com/s/1PZO09k8_lXMCtSpUDIAATw?<br>pwd=19qz<br>
+                复制这段内容打开「百度网盘 APP 即可获取」
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Agent Inspector -->
+        <div class="inspector-panel">
+          <div class="inspector-header">⚡ Agent 内部决策与调用链路解析</div>
+
+          <div class="step-inspect">
+            <div class="step-tag">Step 1 · 迎宾触发 (Event Hook)</div>
+            <p>检测到客户新会话建立，直接推送静态模板 <code>WELCOME_NOTICE_TPL</code>。不消耗大模型 Token，毫秒级下发三要素收集模板与服务规范。</p>
+          </div>
+
+          <div class="step-inspect tool-call">
+            <div class="step-tag" style="color: #34d399;">Step 2 · 智能实体抽取与工具分发</div>
+            <p>客户输入：<i>“11月2日 北京门店 陈麻子”</i></p>
+            <p style="margin-top: 4px; font-family: monospace; font-size: 12px; color: #a7f3d0;">
+              → Agent 决策: 调用 tool <code>query_pan_link</code><br>
+              → 参数: {"shoot_date": "2026-11-02", "store": "北京门店", "customer_name": "陈麻子"}
+            </p>
+          </div>
+
+          <div class="step-inspect">
+            <div class="step-tag">Step 3 · 数据层本地检索与状态返回</div>
+            <p>在 <code>photo_delivery.csv</code> 中匹配到该记录。读取到网盘分享链接和密码，状态标记为 <code>ready</code>。</p>
+          </div>
+
+          <div class="step-inspect tool-call">
+            <div class="step-tag" style="color: #60a5fa;">Step 4 · 标准化格式渲染与下发</div>
+            <p>Agent 获得工具返回结果后，先回复快捷确认“好的，亲亲”，随后依据预设模版组装百度网盘专属分享卡片文案推送给客户。</p>
+          </div>
+
+          <div class="step-inspect handoff">
+            <div class="step-tag" style="color: #fbbf24;">分支场景 A · 闲聊意图触发</div>
+            <p>客户说：“你们店在哪呀 / 辛苦啦” → Agent 判定不需要调取工具，直接扮演萌萌客服人设，亲切回复闲聊，维持客情关系。</p>
+          </div>
+
+          <div class="step-inspect handoff" style="border-left-color: var(--danger);">
+            <div class="step-tag" style="color: #f87171;">分支场景 B · 转人工兜底触发</div>
+            <p>客户说：“修得太丑了想重修 / 给我人工电话” 或连续两次未查到底片 → 自动触发 <code>escalate_to_human</code> 工具，安抚客户并向真人客服群发出告警。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Native Minimal Agent Loop -->
+    <section id="agent-loop" class="doc-section">
+      <h2 class="section-title"><span class="number">3</span> 纯原生极简 Agent 核心引擎</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+        为什么拒绝 LangChain？因为第三方黑盒层层封装、版本频繁破坏、报错难以追踪。纯原生 Agent 仅使用 OpenAI 兼容规范的标准 <code>client.chat.completions.create</code>，整个引擎精炼至 60 行内，清晰可见、易于调试：
+      </p>
+
+      <pre class="code-block"><span class="code-tag">Python (Native Loop)</span><code>class NativeAgent:
+    def __init__(self, system_prompt: str, tools: list, tool_map: dict):
+        self.system_prompt = system_prompt
+        self.tools = tools          # JSON Schema 定义
+        self.tool_map = tool_map    # 函数映射字典 {"query_pan_link": fn}
+
+    def chat(self, user_msg: str, history: list) -> str:
+        messages = [{"role": "system", "content": self.system_prompt}] + history
+        messages.append({"role": "user", "content": user_msg})
+
+        # --- 极简 Tool-Calling 循环 ---
+        while True:
+            response = client.chat.completions.create(
+                model=os.getenv("MODEL_NAME", "deepseek-chat"),
+                messages=messages,
+                tools=self.tools,
+                tool_choice="auto"
+            )
+            msg = response.choices[0].message
+
+            # 如果没有工具调用，说明是大模型直接回答（闲聊或追问），直接返回
+            if not msg.tool_calls:
+                return msg.content
+
+            # 如果触发了工具调用，逐个执行工具并将结果回填
+            messages.append(msg)
+            for tool_call in msg.tool_calls:
+                fn_name = tool_call.function.name
+                args = json.loads(tool_call.function.arguments)
+                
+                # 执行本地对应 Python 函数 (如查 CSV、发转人工通知)
+                tool_result = self.tool_map[fn_name](**args)
+                
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(tool_result, ensure_ascii=False)
+                })
+            # 携带工具结果继续下一轮循环，让大模型生成最终回复话术</code></pre>
+    </section>
+
+    <!-- Section 4: Tools Definition -->
+    <section id="tools-design" class="doc-section">
+      <h2 class="section-title"><span class="number">4</span> 工具箱契约与人设 Prompt 设计</h2>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🛠️ 工具一：query_pan_link（查网盘链接）</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">当客户提供了用于检索照片的线索时调用。</p>
+          <pre class="code-block" style="font-size: 12px;"><span class="code-tag">JSON Schema</span><code>{
+  "name": "query_pan_link",
+  "description": "根据客户拍摄时间、门店或电话尾号、姓名查询对应的百度网盘分享链接与密码",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "customer_name": { "type": "string", "description": "客户真实姓名" },
+      "shoot_date": { "type": "string", "description": "拍摄日期，如 2026-11-02 或 11月2日" },
+      "store_or_phone": { "type": "string", "description": "门店名称或手机后4位" }
+    },
+    "required": ["customer_name"]
+  }
+}</code></pre>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🚨 工具二：escalate_to_human（转人工兜底）</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">当识别到投诉、情绪不满、超出范围或明确要求人工时调用。</p>
+          <pre class="code-block" style="font-size: 12px;"><span class="code-tag">JSON Schema</span><code>{
+  "name": "escalate_to_human",
+  "description": "呼叫真人客服介入，触发内部告警通知，记录需要跟进的会话",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "reason": { "type": "string", "description": "转人工原因：如投诉、深度精修诉求、多次未匹配等" },
+      "customer_intent": { "type": "string", "description": "客户当前的诉求摘要" }
+    },
+    "required": ["reason"]
+  }
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎭 客服人设 System Prompt 规范</div>
+        <pre class="code-block"><span class="code-tag">System Prompt</span><code>你叫萌萌，是“旅咔修图中心”的企业微信在线客服。你的语言风格必须温柔体贴、耐心、称呼客户为“亲亲”。
+服务守则：
+1. 查片场景：当客户发来拍摄信息时，尽可能提取“拍摄时间”、“门店或手机后4位”、“姓名”，并调用 query_pan_link 工具查询。若缺少信息（如只发了姓名），请温柔引导客户补齐。
+2. 闲聊场景：日常问候、致谢或简单交流，请直接以萌萌的口吻温柔回复，切勿随意调用工具。
+3. 转人工场景：遇到客户表达不满、要求修改复杂精修方案、或明确提出找人工客服时，必须调用 escalate_to_human 工具，并在回复中真诚安抚客户耐心等待真人接听。
+4. 格式严谨性：当获得网盘链接后，严格按照标准模板输出（包含文件名、链接、提取码及提示文案）。</code></pre>
+      </div>
+    </section>
+
+    <!-- Section 5: CSV Schema -->
+    <section id="csv-schema" class="doc-section">
+      <h2 class="section-title"><span class="number">5</span> 本地测试数据集设计 (CSV)</h2>
+      <p style="font-size: 14px; color: var(--text-muted);">
+        在 <code>data/photo_delivery.csv</code> 中维护本地交付测试数据，预设匹配规则支持日期模糊归一化（如 <code>11月2日</code> 自动映射 <code>2026-11-02</code>）。
+      </p>
+
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>customer_name</th>
+              <th>shoot_date</th>
+              <th>store_name</th>
+              <th>phone_tail</th>
+              <th>pan_url</th>
+              <th>pan_pwd</th>
+              <th>status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>陈麻子</b></td>
+              <td>2026-11-02</td>
+              <td>北京门店</td>
+              <td>6224</td>
+              <td>https://pan.baidu.com/s/1PZO09k8_lXMCtSpUDIAATw</td>
+              <td><code>19qz</code></td>
+              <td><span style="color:#34d399;">ready</span></td>
+            </tr>
+            <tr>
+              <td><b>李小萌</b></td>
+              <td>2026-11-05</td>
+              <td>大理双廊店</td>
+              <td>8819</td>
+              <td>https://pan.baidu.com/s/1AAbcde9_sampleUrlOnly</td>
+              <td><code>8a2b</code></td>
+              <td><span style="color:#34d399;">ready</span></td>
+            </tr>
+            <tr>
+              <td><b>张晓华</b></td>
+              <td>2026-11-12</td>
+              <td>三亚海棠湾店</td>
+              <td>1234</td>
+              <td>-</td>
+              <td>-</td>
+              <td><span style="color:#fbbf24;">retouching (修图中)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 6: File Tree -->
+    <section id="file-tree" class="doc-section">
+      <h2 class="section-title"><span class="number">6</span> 项目工程结构规划</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+        所有代码落地于 <code>/Users/aiiluo/Documents/Code/WocomRobot</code>，遵循清晰的关注点分离原则：
+      </p>
+
+      <pre class="code-block"><span class="code-tag">Directory Tree</span><code>/Users/aiiluo/Documents/Code/WocomRobot/
+├── .env.example              # 环境变量配置模板 (API_KEY, BASE_URL, WECOM 配置)
+├── Dockerfile                # 跨平台标准容器镜像构建文件
+├── docker-compose.yml        # 一键容器化编排运行配置
+├── requirements.txt          # 极简依赖库 (仅 fastapi, uvicorn, openai, python-dotenv)
+├── docs/                     # 项目技术架构与说明文档
+│   └── index.html            # 本架构设计方案展示页
+├── data/                     # 数据存储目录
+│   └── photo_delivery.csv    # 本地网盘提取测试表 (单行无锁高速查询)
+├── agent/                    # 极简 Agent 核心层
+│   ├── engine.py             # 纯原生 Native Agent Loop 核心引擎 (约 60 行)
+│   ├── prompts.py            # 客服人设 System Prompt 与欢迎语模版
+│   └── tools.py              # query_pan_link 与 escalate_to_human 工具注册
+├── storage/                  # 数据抽象接口层 (面向接口编程，零成本迁移)
+│   ├── base.py               # 抽象存储基类 (定义 query_by_entities 方法)
+│   └── csv_impl.py           # CSV 本地实现类 (后续可增加 mysql_impl / smartsheet_impl)
+├── channels/                 # 消息通道适配层
+│   ├── mock_cli.py           # 本地终端交互式测试器 (无需配置企微网络，秒测对话)
+│   └── wecom_webhook.py      # 企业微信官方回调 Webhook (线上正式部署接入点)
+└── main.py                   # 服务启动总入口</code></pre>
+    </section>
+
+    <!-- Section 7: Migration & Deploy -->
+    <section id="migration-deploy" class="doc-section">
+      <h2 class="section-title"><span class="number">7</span> 一键跨机迁移与部署方案</h2>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🐳 Docker 容器化打包 (一键导出/部署)</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
+            无论目标机器是 Ubuntu、CentOS 还是腾讯云、阿里云，只要有 Docker，一键执行即可：
+          </p>
+          <pre class="code-block" style="font-size: 12px;"><span class="code-tag">Shell</span><code># 1. 复制工程到任意机器
+git clone <repo> 或 scp -r WocomRobot user@host:/opt/
+
+# 2. 配置环境变量
+cp .env.example .env
+
+# 3. 一键构建并启动后台运行
+docker compose up -d --build</code></pre>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🔌 存储与通道完全解耦</div>
+          <ul style="font-size: 13px; color: var(--text-muted); padding-left: 18px; line-height: 1.8;">
+            <li><b>本地开发阶段</b>：运行 <code>python channels/mock_cli.py</code>，直接在终端里打字测试闲聊、查片和转人工。</li>
+            <li><b>线上生产阶段</b>：切换 <code>main.py</code> 启动 Webhook 服务，在企微后台配置好回调 URL，平滑上线。</li>
+            <li><b>数据源升级</b>：未来若不想人工更新 CSV，只需把 <code>storage/</code> 适配器换成企微自带的<b>智能表格 (Smartsheet API)</b>，业务代码 0 修改。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8: Roadmap -->
+    <section id="roadmap" class="doc-section">
+      <h2 class="section-title"><span class="number">8</span> 后续实施推进计划</h2>
+
+      <div class="flow-steps">
+        <div class="flow-node">
+          <div class="flow-badge">Stage 1</div>
+          <div class="flow-text">
+            <h4>工程骨架与测试数据准备</h4>
+            <p>在工程目录创建纯原生依赖配置、数据模版及 <code>photo_delivery.csv</code> 测试集。</p>
+          </div>
+        </div>
+
+        <div class="flow-node">
+          <div class="flow-badge">Stage 2</div>
+          <div class="flow-text">
+            <h4>构建 60 行原生 Agent Loop 引擎</h4>
+            <p>编写 <code>engine.py</code>，注册 <code>query_pan_link</code> 与 <code>escalate_to_human</code> 工具，调优提示词人设。</p>
+          </div>
+        </div>
+
+        <div class="flow-node">
+          <div class="flow-badge">Stage 3</div>
+          <div class="flow-text">
+            <h4>本地终端模拟器验证 (Mock CLI)</h4>
+            <p>无需对接企微网络，直接在本地输入截图中的三句话，验证网盘提取、闲聊与转人工的三重判定。</p>
+          </div>
+        </div>
+
+        <div class="flow-node">
+          <div class="flow-badge">Stage 4</div>
+          <div class="flow-text">
+            <h4>企微 Webhook 接口对接与 Docker 打包</h4>
+            <p>完成生产环境接入代码与容器打包，提供一键迁移命令指南。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+</body>
+</html>
