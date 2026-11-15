@@ -17,6 +17,7 @@ router = APIRouter(prefix="/wecom", tags=["WeCom Webhook"])
 # 全局 Agent 实例与工具执行器持有（由 main.py 初始化时注入）
 _agent_instance = None
 _tool_executor = None
+_processed_msg_ids = set()
 
 
 def set_agent_instance(agent, tool_executor=None):
@@ -109,7 +110,60 @@ async def receive_message(
             user_content = xml_root.findtext("Content") or ""
         elif msg_type == "event":
             event = xml_root.findtext("Event")
-            if event in ["enter_session", "add_external_contact", "subscribe"]:
+            if event == "kf_msg_or_event":
+                token_str = xml_root.findtext("Token") or ""
+                # 同步拉取微信客服最新消息
+                msg_list = wecom_client.sync_customer_messages(open_kfid, token_str=token_str)
+                print(f"[微信客服回调] 收到事件通知，拉取到 {len(msg_list)} 条消息")
+                for msg in msg_list:
+                    msg_id = msg.get("msgid")
+                    if msg_id and msg_id in _processed_msg_ids:
+                        continue
+                    if msg_id:
+                        _processed_msg_ids.add(msg_id)
+                        if len(_processed_msg_ids) > 2000:
+                            _processed_msg_ids.pop()
+
+                    origin = msg.get("origin")
+                    cust_id = msg.get("external_userid")
+                    inner_msg_type = msg.get("msgtype")
+
+                    # 1. 客户进入会话下发欢迎语
+                    if origin == 3 and inner_msg_type == "event":
+                        event_type = msg.get("event", {}).get("event_type")
+                        if event_type == "enter_session":
+                            print(f"[微信客服] 客户 [{cust_id}] 进入会话，下发默认欢迎语")
+                            from agent.prompts import WELCOME_MESSAGE
+                            wecom_client.send_customer_message(open_kfid, cust_id, WELCOME_MESSAGE)
+                            continue
+
+                    # 2. 外部客户发送文本消息
+                    if origin == 3 and inner_msg_type == "text":
+                        user_text = msg.get("text", {}).get("content", "").strip()
+                        if not cust_id or not user_text:
+                            continue
+
+                        print(f"[微信客服] 收到客户 [{cust_id}] 咨询: {user_text}")
+
+                        # 核心拦截：检查该客户是否处于“人工接管”状态
+                        if session_mgr.is_human_active(cust_id):
+                            print(f"  [🔒 人工接管静默] 客户 [{cust_id}] 正在由真人接待，机器人保持静默不回复。")
+                            continue
+
+                        # 注入当前客户会话上下文给工具执行器
+                        if _tool_executor:
+                            _tool_executor.set_context(customer_id=cust_id, open_kfid=open_kfid)
+
+                        # 调用极简原生 Agent 驱动回复
+                        history = session_mgr.get_history(cust_id)
+                        reply_text, new_history = _agent_instance.chat(user_text, history)
+                        session_mgr.update_history(cust_id, new_history)
+
+                        # 回复客户
+                        wecom_client.send_customer_message(open_kfid, cust_id, reply_text)
+
+                return PlainTextResponse("success")
+            elif event in ["enter_session", "add_external_contact", "subscribe"]:
                 from agent.prompts import WELCOME_MESSAGE
                 # 进线欢迎语下发
                 if wecom_client.is_configured and open_kfid:

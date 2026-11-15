@@ -72,9 +72,77 @@ class WeComClient:
             req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 res = json.loads(resp.read().decode("utf-8"))
-                return res.get("errcode") == 0
+                if res.get("errcode") == 0:
+                    print(f"  [✓ 客服消息已下发] 成功送达微信客户 [{external_userid}]")
+                    return True
+                else:
+                    print(f"[企微API报错] send_msg 失败: {res}")
+                    return False
         except Exception as e:
             print(f"[企微API报错] 发送客服消息失败: {e}")
+            return False
+
+    def sync_customer_messages(self, open_kfid: str, token_str: str = "", cursor: str = "") -> list:
+        """
+        同步微信客服消息 (微信客服 sync_msg API)
+        """
+        token = self.get_access_token()
+        if not token:
+            return []
+
+        url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/sync_msg?access_token={token}"
+        payload = {
+            "open_kfid": open_kfid,
+            "voice_format": 0
+        }
+        if token_str:
+            payload["token"] = token_str
+        if cursor:
+            payload["cursor"] = cursor
+
+        try:
+            req_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                if res.get("errcode") == 0:
+                    return res.get("msg_list", [])
+                else:
+                    print(f"[企微API报错] sync_customer_messages 失败: {res}")
+        except Exception as e:
+            print(f"[网络异常] sync_customer_messages 异常: {e}")
+        return []
+
+    def trans_service_state(
+        self,
+        open_kfid: str,
+        external_userid: str,
+        service_state: int,
+        servicer_userid: Optional[str] = None
+    ) -> bool:
+        """
+        变更会话状态 (service_state/trans)
+        3: 转人工, 4: 结束会话
+        """
+        token = self.get_access_token()
+        if not token:
+            return False
+        url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/trans?access_token={token}"
+        payload = {
+            "open_kfid": open_kfid,
+            "external_userid": external_userid,
+            "service_state": service_state
+        }
+        if servicer_userid:
+            payload["servicer_userid"] = servicer_userid
+        try:
+            req_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                return res.get("errcode") == 0
+        except Exception as e:
+            print(f"[企微API报错] trans_service_state 异常: {e}")
             return False
 
     def upgrade_to_human(
@@ -88,10 +156,20 @@ class WeComClient:
         转人工：调用微信客服 upgrade_service API 将会话转接给指定真实客服
         """
         target_servicer = servicer_userid or self.default_servicer
+        # 兼容自动探测真实成员 userid
+        if target_servicer.startswith("woGox"):
+            target_servicer = "ChenPeng"
 
-        # 1. 如果已配置企微官方 API，调用官方升级服务接口
+        # 1. 如果已配置企微官方 API，尝试将微信客服状态直接流转至人工 (service_state=3)
         token = self.get_access_token()
         if token and open_kfid:
+            # 方案 A: 通过 trans_service_state 直接将状态改为 3 (人工接待)
+            trans_ok = self.trans_service_state(open_kfid, external_userid, service_state=3, servicer_userid=target_servicer)
+            if trans_ok:
+                print(f"  [✓ 微信客服转人工成功] 客户 [{external_userid}] 会话已通过 service_state 流转至真实客服 [{target_servicer}]")
+                return True
+
+            # 方案 B: 调用 upgrade_service 推荐专员名片
             url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/customer/upgrade_service?access_token={token}"
             payload = {
                 "open_kfid": open_kfid,
@@ -107,7 +185,7 @@ class WeComClient:
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     res = json.loads(resp.read().decode("utf-8"))
                     if res.get("errcode") == 0:
-                        print(f"  [✓ 企微官方转人工成功] 客户 [{external_userid}] 已指派给真实客服 [{target_servicer}]")
+                        print(f"  [✓ 企微官方专员推荐成功] 客户 [{external_userid}] 已指派给真实客服 [{target_servicer}]")
                         return True
             except Exception as e:
                 print(f"[企微API报错] 升级人工客服失败: {e}")
