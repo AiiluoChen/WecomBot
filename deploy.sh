@@ -34,25 +34,26 @@ CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'main')"
 git push -u origin "$CURRENT_BRANCH"
 echo "✅ GitHub 代码推送成功！"
 
-# 读取阿里云服务器 IP (优先从环境变量或 .env 中读取)
+# 读取服务器 IP (优先从环境变量或 .env 中读取，支持 SERVER_IP / TENCENT_SERVER_IP / ALIYUN_SERVER_IP)
 SERVER_IP=""
 if [ -f ".env" ]; then
-    SERVER_IP=$(grep -E "^ALIYUN_SERVER_IP=" .env | cut -d '=' -f2 | tr -d ' ' || true)
+    SERVER_IP=$(grep -E "^(SERVER_IP|TENCENT_SERVER_IP|ALIYUN_SERVER_IP)=" .env | head -n1 | cut -d '=' -f2 | tr -d ' ' || true)
 fi
+SERVER_IP="${SERVER_IP:-129.28.42.58}"
 
 echo ""
 echo "========================================================"
-echo "🚀 2. 检查阿里云服务器部署状态..."
+echo "🚀 2. 检查云服务器部署状态..."
 echo "========================================================"
 
 if [ -n "$SERVER_IP" ]; then
-    echo "📡 正在连接阿里云 ECS [$SERVER_IP] 执行热更新..."
+    echo "📡 正在连接云服务器 [$SERVER_IP] 执行热更新..."
+    rsync -avz --exclude '.git' --exclude 'venv' --exclude '__pycache__' --exclude '.env' \
+        "$BASE_DIR/" "root@$SERVER_IP:/opt/WocomRobot/"
     ssh -o ConnectTimeout=8 -o StrictHostKeyChecking=no "root@$SERVER_IP" \
-        "cd /opt/WocomRobot && git pull && docker compose restart"
-    echo "🎉 阿里云更新完成并已成功生效！"
+        "systemctl restart wocom-robot && systemctl status wocom-robot --no-pager"
+    echo "🎉 云服务器更新完成并已成功生效！"
 else
-    echo "ℹ️  提示: 未在 .env 中设置 ALIYUN_SERVER_IP。"
-    echo "👉 当你开通阿里云 ECS 后，只需在 .env 中填入: ALIYUN_SERVER_IP=你的公网IP"
-    echo "   以后每次运行 ./deploy.sh 就会自动完成远程服务器更新！"
+    echo "ℹ️  提示: 未在 .env 中设置 SERVER_IP。"
 fi
 echo "========================================================"

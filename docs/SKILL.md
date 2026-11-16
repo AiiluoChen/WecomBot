@@ -13,11 +13,11 @@ description: 旅咔修图中心微信客服机器人系统运维、架构机制�
 
 - **项目本地路径**：`/Users/aiiluo/Documents/Code/WocomRobot`
 - **Git 仓库**：`git@github.com:AiiluoChen/WecomBot.git` (分支 `main`)
-- **阿里云生产服务器**：
-  - **公网 IP**：`118.178.170.34`（安全组已开放 TCP `8000` 端口）
+- **生产云服务器（腾讯云）**：
+  - **公网 IP**：`129.28.42.58`（需要在腾讯云控制台放行安全组 TCP `8000` 端口）
   - **部署目录**：`/opt/WocomRobot`
   - **服务控制**：`systemctl status|restart wocom-robot.service`
-  - **运行环境**：Python 3.12 虚拟环境 (`/opt/WocomRobot/venv`)，原生极简 Agent 循环（OpenAI/DeepSeek Tool-calling Loop）
+  - **运行环境**：Python 3.14 虚拟环境 (`/opt/WocomRobot/venv`)，原生极简 Agent 循环（OpenAI/DeepSeek Tool-calling Loop）
 - **官方接口凭证约定** (`.env`)：
   - `WECOM_CORP_ID`：企业 ID
   - `WECOM_KF_SECRET`：微信客服/自建应用 Secret
@@ -54,7 +54,7 @@ description: 旅咔修图中心微信客服机器人系统运维、架构机制�
   - `origin: 5`：内部坐席人员在企微发送的消息。
 
 ### 2.3 可信 IP 与授权关系
-- 自建应用要接管微信客服接口，必须在自建应用后台登记服务器公网出口 IP（`118.178.170.34`）为【企业可信IP】。
+- 自建应用要接管微信客服接口，必须在自建应用后台登记服务器公网出口 IP（`129.28.42.58`）为【企业可信IP】。
 - 在微信客服后台【可调用接口的应用】勾选该自建应用，并绑定管理的客服账号。
 
 ---
@@ -116,10 +116,10 @@ description: 旅咔修图中心微信客服机器人系统运维、架构机制�
 ### 5.1 查看服务日志
 ```bash
 # 查看最近 50 条服务运行日志
-ssh root@118.178.170.34 "journalctl -u wocom-robot.service -n 50 --no-pager"
+ssh root@129.28.42.58 "journalctl -u wocom-robot.service -n 50 --no-pager"
 
 # 实时跟踪日志
-ssh root@118.178.170.34 "journalctl -u wocom-robot.service -f"
+ssh root@129.28.42.58 "journalctl -u wocom-robot.service -f"
 ```
 
 ### 5.2 代码部署与同步
@@ -131,17 +131,17 @@ git push origin main
 
 # 部署并热重启线上服务
 rsync -avz --exclude '.git' --exclude 'venv' --exclude '__pycache__' --exclude '.env' \
-  /Users/aiiluo/Documents/Code/WocomRobot/ root@118.178.170.34:/opt/WocomRobot/
-ssh root@118.178.170.34 "systemctl restart wocom-robot && systemctl status wocom-robot"
+  /Users/aiiluo/Documents/Code/WocomRobot/ root@129.28.42.58:/opt/WocomRobot/
+ssh root@129.28.42.58 "systemctl restart wocom-robot && systemctl status wocom-robot"
 ```
 
 ### 5.3 常用测试命令
 ```bash
 # 测试服务器健康状态
-curl -i http://118.178.170.34:8000/health
+curl -i http://129.28.42.58:8000/health
 
 # 测试获取微信客服 AccessToken
-ssh root@118.178.170.34 "cd /opt/WocomRobot && /opt/WocomRobot/venv/bin/python -c '
+ssh root@129.28.42.58 "cd /opt/WocomRobot && /opt/WocomRobot/venv/bin/python -c '
 from dotenv import load_dotenv; load_dotenv()
 from channels.wecom_client import wecom_client
 print(\"AccessToken:\", wecom_client.get_access_token()[:20] if wecom_client.get_access_token() else None)
