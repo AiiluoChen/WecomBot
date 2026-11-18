@@ -114,7 +114,7 @@ async def receive_message(
                 token_str = xml_root.findtext("Token") or ""
                 # 同步拉取微信客服最新消息
                 msg_list = wecom_client.sync_customer_messages(open_kfid, token_str=token_str)
-                print(f"[微信客服回调] 收到事件通知，拉取到 {len(msg_list)} 条消息")
+                print(f"[微信客服回调] 收到事件通知 (open_kfid={open_kfid})，拉取到 {len(msg_list)} 条消息")
                 for msg in msg_list:
                     msg_id = msg.get("msgid")
                     if msg_id and msg_id in _processed_msg_ids:

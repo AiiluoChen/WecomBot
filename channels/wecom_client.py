@@ -10,6 +10,9 @@ import subprocess
 import urllib.request
 import urllib.error
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class WeComClient:
