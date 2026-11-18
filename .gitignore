@@ -22,4 +22,9 @@ Thumbs.db
 
 # 日志与测试缓存
 *.log
+logs/
 .pytest_cache/
+
+# 百度网盘同步 — BaiduPCS-Py 本地凭证缓存（自动生成，不上传）
+sync/.baidupcs/
+sync/__pycache__/
